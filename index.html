@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zora</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; font-family: Georgia, 'Times New Roman', serif; }
+  #stage { position: fixed; inset: 0; background: #000 url('assets/background.webp') center/cover no-repeat; cursor: pointer; }
+  #sprite { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); height: 92vh; max-width: 95vw; object-fit: contain; opacity: 0; transition: opacity 1.4s ease; pointer-events: none; }
+  #sprite.show { opacity: 1; }
+  #dialogue { position: absolute; left: 50%; transform: translateX(-50%); bottom: 4vh; width: min(760px, 92vw); background: rgba(5,5,15,.78); border: 1px solid rgba(200,200,255,.25); border-radius: 10px; padding: 18px 22px 14px; color: #e8e8f2; }
+  #speaker { font-size: 13px; letter-spacing: .18em; text-transform: uppercase; color: #b9b9e8; margin-bottom: 8px; }
+  #speaker:empty { display: none; }
+  #line { font-size: 19px; line-height: 1.55; min-height: 1.55em; }
+  #hint { margin-top: 12px; font-size: 12px; letter-spacing: .12em; color: #8f8fa8; text-transform: uppercase; text-align: right; }
+  #choices { position: absolute; left: 50%; top: 32%; transform: translate(-50%,-50%); display: none; flex-direction: column; gap: 14px; width: min(420px, 88vw); z-index: 2; }
+  #choices.show { display: flex; }
+  #choices button { font-family: inherit; font-size: 18px; padding: 14px 20px; border-radius: 10px; border: 1px solid rgba(200,200,255,.4); background: rgba(5,5,15,.88); color: #e8e8f2; cursor: pointer; }
+  #choices button:hover { background: rgba(40,40,80,.92); }
+  #endcard { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 20px; background: rgba(0,0,5,.72); color: #e8e8f2; text-align: center; padding: 20px; z-index: 3; }
+  #endcard.show { display: flex; }
+  #endcard p { font-size: 22px; }
+  #endcard button { font-family: inherit; font-size: 17px; padding: 12px 26px; border-radius: 10px; border: 1px solid rgba(200,200,255,.4); background: rgba(5,5,15,.9); color: #e8e8f2; cursor: pointer; }
+  @media (max-width: 600px) {
+    #line { font-size: 17px; }
+    #sprite { height: 78vh; }
+    #choices { top: 28%; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <img id="sprite" alt="">
+  <div id="choices">
+    <button data-branch="closer">Step closer to the glass</button>
+    <button data-branch="walking">Keep walking</button>
+  </div>
+  <div id="dialogue">
+    <div id="speaker"></div>
+    <div id="line"></div>
+    <div id="hint">Click to continue ▸</div>
+  </div>
+  <div id="endcard">
+    <p>End of the first pass. More scenes coming.</p>
+    <button id="restart">Start over</button>
+  </div>
+</div>
+<script>
+var FAINT = 'assets/zora-faint.webp';
+var FULL = 'assets/zora-full.webp';
+var MAIN = [
+  { speaker: '', text: 'The street is empty. The shops are shut. The moon is out, and the window is full of it.', sprite: null },
+  { speaker: '', text: "You stop. Something in the glass isn't the street behind you.", sprite: null },
+  { speaker: 'Zora', text: 'Twice, now. The second look is the one that counts.', sprite: FAINT },
+  { speaker: '', text: 'Her grin is the clearest thing about her. The rest is moonlight, deciding whether to be a person.', sprite: FAINT },
+  { speaker: 'Zora', text: 'Walk on, if you like. I travel so well.', sprite: FAINT }
+];
+var BRANCHES = {
+  closer: [
+    { speaker: 'Zora', text: 'Closer. Good. Most people only ever get the one look.', sprite: FULL },
+    { speaker: '', text: 'She is solid now, smiling like the moon is a private joke.', sprite: FULL }
+  ],
+  walking: [
+    { speaker: '', text: 'You walk. At the next corner, your phone wakes in your pocket — and the glass is already smiling.', sprite: FAINT },
+    { speaker: 'Zora', text: 'I told you. I travel so well.', sprite: FAINT }
+  ]
+};
+
+var stage = document.getElementById('stage');
+var sprite = document.getElementById('sprite');
+var speakerEl = document.getElementById('speaker');
+var lineEl = document.getElementById('line');
+var choicesEl = document.getElementById('choices');
+var endcardEl = document.getElementById('endcard');
+var queue = MAIN;
+var index = 0;
+var currentSprite = null;
+
+function setSprite(src) {
+  if (!src) {
+    sprite.classList.remove('show');
+    currentSprite = null;
+    return;
+  }
+  if (currentSprite === src) return;
+  sprite.classList.remove('show');
+  sprite.src = src;
+  void sprite.offsetWidth;
+  sprite.classList.add('show');
+  currentSprite = src;
+}
+
+function showStep(step) {
+  speakerEl.textContent = step.speaker;
+  lineEl.textContent = step.text;
+  setSprite(step.sprite);
+}
+
+function start() {
+  queue = MAIN;
+  index = 0;
+  choicesEl.classList.remove('show');
+  endcardEl.classList.remove('show');
+  showStep(queue[index]);
+}
+
+function advance() {
+  if (choicesEl.classList.contains('show') || endcardEl.classList.contains('show')) return;
+  index++;
+  if (index >= queue.length) {
+    if (queue === MAIN) {
+      choicesEl.classList.add('show');
+    } else {
+      endcardEl.classList.add('show');
+    }
+    return;
+  }
+  showStep(queue[index]);
+}
+
+stage.addEventListener('click', function (e) {
+  if (e.target.closest('button')) return;
+  advance();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (choicesEl.classList.contains('show') || endcardEl.classList.contains('show')) return;
+    e.preventDefault();
+    advance();
+  }
+});
+choicesEl.addEventListener('click', function (e) {
+  var btn = e.target.closest('button');
+  if (!btn) return;
+  queue = BRANCHES[btn.getAttribute('data-branch')];
+  index = 0;
+  choicesEl.classList.remove('show');
+  showStep(queue[index]);
+});
+document.getElementById('restart').addEventListener('click', function (e) {
+  e.stopPropagation();
+  start();
+});
+
+start();
+</script>
+</body>
+</html>
